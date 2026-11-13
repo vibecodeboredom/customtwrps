@@ -59,7 +59,9 @@ jobs:
 
       - name: Copy device tree into build tree
         run: |
-          cp -r "$GITHUB_WORKSPACE/device" ~/twrp/device
+          # Copy the brand dir into the manifest's device/ (which already
+          # exists after repo sync, so copy the contents, not the dir itself)
+          cp -r "$GITHUB_WORKSPACE/device/along" ~/twrp/device/
           ls ~/twrp/device/along/T10/
 
       - name: Build TWRP (boot image = recovery for A/B)
