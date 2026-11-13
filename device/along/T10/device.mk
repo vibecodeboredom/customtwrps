@@ -21,11 +21,8 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     bootctrl.mt6761
 
-PRODUCT_STATIC_BOOT_CONTROL_HAL := \
-    bootctrl.mt6761 \
-    libgptutils \
-    libz \
-    libcutils
+# Note: PRODUCT_STATIC_BOOT_CONTROL_HAL is obsolete in Android 12+;
+# the shared-library bootctrl HAL above is the correct form.
 
 PRODUCT_PACKAGES += \
     otapreopt_script \
