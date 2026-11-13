@@ -1,0 +1,78 @@
+name: Build TWRP — Vortex T10M
+
+# Builds TWRP for the Vortex T10M (device/along/T10) from the
+# minimal-manifest TWRP AOSP tree (twrp-12.1, Android 12).
+# The T10M is an A/B device with recovery-as-boot, so the build target
+# is `bootimage` — the output boot.img IS the recovery image.
+# Trigger manually, or automatically when the T10M device tree changes.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'device/along/T10/**'
+      - '.github/workflows/build-t10m.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout customtwrps
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo apt-get clean
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bc bison build-essential ccache curl flex \
+            g++-multilib gcc-multilib git git-lfs gnupg gperf imagemagick \
+            lib32ncurses-dev lib32readline-dev lib32z1-dev libelf-dev \
+            liblz4-tool libncurses-dev libsdl1.2-dev libssl-dev libxml2 \
+            libxml2-utils lzop pngcrush rsync schedtool squashfs-tools \
+            xsltproc zip zlib1g-dev
+
+      - name: Install repo tool
+        run: |
+          mkdir -p ~/bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Configure git
+        run: |
+          git config --global user.name "vibecodeboredom"
+          git config --global user.email "vibecodeboredom@users.noreply.github.com"
+
+      - name: Sync minimal TWRP manifest (twrp-12.1)
+        run: |
+          mkdir -p ~/twrp
+          cd ~/twrp
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1 --depth=1
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j$(nproc --all)
+          df -h
+
+      - name: Copy device tree into build tree
+        run: |
+          cp -r "$GITHUB_WORKSPACE/device" ~/twrp/device
+          ls ~/twrp/device/along/T10/
+
+      - name: Build TWRP (boot image = recovery for A/B)
+        run: |
+          cd ~/twrp
+          source build/envsetup.sh
+          lunch twrp_T10-eng
+          mka bootimage -j$(nproc --all)
+          ls -lh out/target/product/T10/boot.img
+
+      - name: Upload recovery image
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-vortex-t10m
+          path: ~/twrp/out/target/product/T10/boot.img
+          if-no-files-found: error
